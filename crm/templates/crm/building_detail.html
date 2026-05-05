@@ -1,0 +1,80 @@
+{% extends "crm/base.html" %}
+{% load static %}
+{% block title %}{{ building.name }} · BuildCRM{% endblock %}
+{% block content %}
+<section class="building-hero panel reveal">
+  <div>
+    <p class="eyebrow">{{ building.complex.name }}</p>
+    <h1>{{ building.name }}</h1>
+    <p class="muted">{{ building.complex.address }}</p>
+  </div>
+  <div class="building-stats">
+    <span><strong>{{ dashboard.total }}</strong> всего</span>
+    <span><strong>{{ dashboard.available }}</strong> свободно</span>
+    <span><strong>{{ dashboard.reserved }}</strong> бронь</span>
+    <span><strong>{{ dashboard.sold }}</strong> продано</span>
+  </div>
+</section>
+
+<section class="panel reveal delay-1">
+  <div class="section-head">
+    <div>
+      <p class="eyebrow">Визуализация дома</p>
+      <h2>Квартиры по этажам</h2>
+    </div>
+    <a class="button ghost" href="{% url 'ui-dashboard' %}">Назад</a>
+  </div>
+
+  <div class="building-grid">
+    {% for floor in floor_rows %}
+      <div class="floor-row">
+        <div class="floor-label">{{ floor.number }} этаж</div>
+        <div class="apartment-row">
+          {% for apartment in floor.apartments %}
+            <button class="apartment-card status-{{ apartment.status }} {% if apartment.payment_type == 'mortgage' %}is-mortgage{% endif %}"
+              type="button"
+              data-number="{{ apartment.number }}"
+              data-rooms="{{ apartment.rooms }}"
+              data-area="{{ apartment.area }}"
+              data-price="{{ apartment.price }}"
+              data-status="{{ apartment.status }}"
+              data-payment="{{ apartment.payment_type }}"
+              data-floor="{{ floor.number }}">
+              <strong>{{ apartment.number }}</strong>
+              <span>{{ apartment.rooms }} комн.</span>
+              <small>{{ apartment.area }} м2</small>
+            </button>
+          {% empty %}
+            <div class="empty-floor">Нет квартир</div>
+          {% endfor %}
+        </div>
+      </div>
+    {% empty %}
+      <div class="empty-state">
+        <strong>Этажи пока не созданы</strong>
+        <p>Создайте дом через `POST /api/buildings/` с `apartments_per_floor`.</p>
+      </div>
+    {% endfor %}
+  </div>
+</section>
+
+<div id="apartment-modal" class="modal" hidden>
+  <div class="modal-backdrop" data-close-modal></div>
+  <article class="modal-card">
+    <button class="modal-close" type="button" data-close-modal>×</button>
+    <p class="eyebrow">Квартира</p>
+    <h2 id="modal-number"></h2>
+    <dl class="details-list">
+      <div><dt>Этаж</dt><dd id="modal-floor"></dd></div>
+      <div><dt>Комнат</dt><dd id="modal-rooms"></dd></div>
+      <div><dt>Площадь</dt><dd><span id="modal-area"></span> м2</dd></div>
+      <div><dt>Цена</dt><dd id="modal-price"></dd></div>
+      <div><dt>Статус</dt><dd id="modal-status"></dd></div>
+      <div><dt>Оплата</dt><dd id="modal-payment"></dd></div>
+    </dl>
+  </article>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{% static 'crm/app.js' %}"></script>
+{% endblock %}

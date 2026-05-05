@@ -1,0 +1,83 @@
+{% extends "crm/base.html" %}
+{% load static %}
+{% block title %}BuildCRM Dashboard{% endblock %}
+{% block content %}
+<section class="hero panel reveal">
+  <div>
+    <p class="eyebrow">CRM для строительной компании</p>
+    <h1>Контроль продаж, остатков и AI-помощник в одном экране.</h1>
+  </div>
+  <div class="hero-actions">
+    {% if first_building %}
+      <a class="button primary" href="{% url 'ui-building-detail' first_building.id %}">Открыть дом</a>
+    {% endif %}
+    <a class="button ghost" href="/api/dashboard/">JSON dashboard</a>
+  </div>
+</section>
+
+<section class="kpi-grid">
+  <article class="kpi-card reveal delay-1">
+    <span>Всего квартир</span>
+    <strong>{{ dashboard.total }}</strong>
+  </article>
+  <article class="kpi-card available reveal delay-2">
+    <span>Свободно</span>
+    <strong>{{ dashboard.available }}</strong>
+  </article>
+  <article class="kpi-card reserved reveal delay-3">
+    <span>Забронировано</span>
+    <strong>{{ dashboard.reserved }}</strong>
+  </article>
+  <article class="kpi-card sold reveal delay-4">
+    <span>Продано</span>
+    <strong>{{ dashboard.sold }}</strong>
+  </article>
+</section>
+
+<section class="dashboard-grid">
+  <div class="panel reveal delay-2">
+    <div class="section-head">
+      <div>
+        <p class="eyebrow">Объекты</p>
+        <h2>Дома</h2>
+      </div>
+    </div>
+    <div class="building-list">
+      {% for building in buildings %}
+        <a class="building-row" href="{% url 'ui-building-detail' building.id %}">
+          <span>
+            <strong>{{ building.name }}</strong>
+            <small>{{ building.complex.name }} · {{ building.floors_count }} этажей</small>
+          </span>
+          <b>{{ building.apartments_count }}</b>
+        </a>
+      {% empty %}
+        <div class="empty-state">
+          <strong>Домов пока нет</strong>
+          <p>Создайте ЖК и дом через API или Django Admin. После этого здесь появится визуализация.</p>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="panel ai-panel reveal delay-3">
+    <div class="section-head">
+      <div>
+        <p class="eyebrow">AI чат</p>
+        <h2>Спросить CRM</h2>
+      </div>
+    </div>
+    <div id="chat-log" class="chat-log">
+      <div class="chat-message assistant">Напишите: “сколько свободных квартир?” или “покажи 2-комнатные до 80000”.</div>
+    </div>
+    <form id="chat-form" class="chat-form">
+      {% csrf_token %}
+      <input id="chat-input" type="text" name="message" placeholder="Ваш вопрос по CRM" autocomplete="off">
+      <button type="submit">Отправить</button>
+    </form>
+  </div>
+</section>
+{% endblock %}
+{% block scripts %}
+<script src="{% static 'crm/app.js' %}"></script>
+{% endblock %}
