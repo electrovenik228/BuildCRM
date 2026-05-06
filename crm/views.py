@@ -1,21 +1,27 @@
-from django.db.models import Count
+from django.db.models import Avg, Count, Sum
 from django.shortcuts import get_object_or_404, render
+from django.utils import timezone
 from rest_framework import mixins, viewsets
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import AIChatMessage, Apartment, Building, Client, Deal, Floor, ResidentialComplex
+from .models import AIChatMessage, Apartment, Building, Client, ClientNote, Deal, Floor, ResidentialComplex
 from .serializers import (
     AIChatMessageSerializer,
     AIChatRequestSerializer,
     AIChatResponseSerializer,
     ApartmentSerializer,
     BuildingSerializer,
+    ClientDetailSerializer,
+    ClientNoteSerializer,
     ClientSerializer,
     DealSerializer,
     FloorSerializer,
     ResidentialComplexSerializer,
 )
+
+
+ACTIVE_DEAL_STATUSES = [Deal.Status.LEAD, Deal.Status.IN_PROGRESS]
 
 
 class ResidentialComplexViewSet(viewsets.ModelViewSet):
@@ -53,18 +59,51 @@ class ApartmentViewSet(viewsets.ModelViewSet):
         building_id = self.request.query_params.get("building")
         floor_id = self.request.query_params.get("floor")
         status = self.request.query_params.get("status")
+        rooms = self.request.query_params.get("rooms")
+        payment_type = self.request.query_params.get("payment_type")
+        min_price = self.request.query_params.get("min_price")
+        max_price = self.request.query_params.get("max_price")
         if building_id:
             queryset = queryset.filter(building_id=building_id)
         if floor_id:
             queryset = queryset.filter(floor_id=floor_id)
         if status:
             queryset = queryset.filter(status=status)
+        if rooms:
+            queryset = queryset.filter(rooms=rooms)
+        if payment_type:
+            queryset = queryset.filter(payment_type=payment_type)
+        if min_price:
+            queryset = queryset.filter(price__gte=min_price)
+        if max_price:
+            queryset = queryset.filter(price__lte=max_price)
         return queryset
 
 
 class ClientViewSet(viewsets.ModelViewSet):
-    queryset = Client.objects.all()
     serializer_class = ClientSerializer
+
+    def get_queryset(self):
+        return Client.objects.prefetch_related("notes", "deals__apartment__building")
+
+    def get_serializer_class(self):
+        if self.action == "retrieve":
+            return ClientDetailSerializer
+        return ClientSerializer
+
+
+class ClientNoteViewSet(viewsets.ModelViewSet):
+    serializer_class = ClientNoteSerializer
+
+    def get_queryset(self):
+        queryset = ClientNote.objects.select_related("client")
+        client_id = self.request.query_params.get("client")
+        note_type = self.request.query_params.get("note_type")
+        if client_id:
+            queryset = queryset.filter(client_id=client_id)
+        if note_type:
+            queryset = queryset.filter(note_type=note_type)
+        return queryset
 
 
 class DealViewSet(mixins.CreateModelMixin, mixins.UpdateModelMixin, mixins.RetrieveModelMixin, mixins.ListModelMixin, viewsets.GenericViewSet):
@@ -86,18 +125,10 @@ class DealViewSet(mixins.CreateModelMixin, mixins.UpdateModelMixin, mixins.Retri
 
 class DashboardView(APIView):
     def get(self, request):
-        counts = dict(Apartment.objects.values_list("status").annotate(count=Count("id")))
-        return Response(
-            {
-                "total": sum(counts.values()),
-                "sold": counts.get(Apartment.Status.SOLD, 0),
-                "available": counts.get(Apartment.Status.AVAILABLE, 0),
-                "reserved": counts.get(Apartment.Status.RESERVED, 0),
-            }
-        )
+        return Response(_dashboard_payload())
 
 
-def _dashboard_counts(queryset=None):
+def _apartment_counts(queryset=None):
     queryset = queryset or Apartment.objects.all()
     counts = dict(queryset.values_list("status").annotate(count=Count("id")))
     return {
@@ -106,6 +137,48 @@ def _dashboard_counts(queryset=None):
         "available": counts.get(Apartment.Status.AVAILABLE, 0),
         "reserved": counts.get(Apartment.Status.RESERVED, 0),
     }
+
+
+def _financial_kpis():
+    deals = Deal.objects.all()
+    total_deals = deals.count()
+    closed_deals = deals.filter(status=Deal.Status.CLOSED).count()
+    active_deals = deals.filter(status__in=ACTIVE_DEAL_STATUSES)
+    apartment_value = Apartment.objects.aggregate(total_price=Sum("price"), total_area=Sum("area"))
+    total_price = apartment_value["total_price"] or 0
+    total_area = apartment_value["total_area"] or 0
+    closed_revenue = deals.filter(status=Deal.Status.CLOSED).aggregate(total=Sum("final_price"))["total"] or 0
+    active_pipeline = active_deals.aggregate(total=Sum("final_price"))["total"] or 0
+
+    revenue_by_building = [
+        {
+            "building": row["apartment__building__name"],
+            "revenue": row["revenue"] or 0,
+        }
+        for row in deals.filter(status=Deal.Status.CLOSED)
+        .values("apartment__building__name")
+        .annotate(revenue=Sum("final_price"))
+        .order_by("apartment__building__name")
+    ]
+
+    return {
+        "deals_total": total_deals,
+        "closed_deals": closed_deals,
+        "conversion_rate": round((closed_deals / total_deals) * 100, 2) if total_deals else 0,
+        "closed_revenue": closed_revenue,
+        "active_pipeline": active_pipeline,
+        "average_deal": deals.filter(status=Deal.Status.CLOSED).aggregate(avg=Avg("final_price"))["avg"] or 0,
+        "average_sqm_price": total_price / total_area if total_area else 0,
+        "expired_reserved": active_deals.filter(reserved_until__lt=timezone.now()).count(),
+        "revenue_by_building": revenue_by_building,
+    }
+
+
+def _dashboard_payload(queryset=None):
+    payload = _apartment_counts(queryset)
+    if queryset is None:
+        payload["financial"] = _financial_kpis()
+    return payload
 
 
 def dashboard_page(request):
@@ -118,7 +191,8 @@ def dashboard_page(request):
         request,
         "crm/dashboard.html",
         {
-            "dashboard": _dashboard_counts(),
+            "dashboard": _apartment_counts(),
+            "financial": _financial_kpis(),
             "buildings": buildings,
             "first_building": buildings.first(),
         },
@@ -141,7 +215,7 @@ def building_detail_page(request, pk):
         {
             "building": building,
             "floor_rows": floor_rows,
-            "dashboard": _dashboard_counts(Apartment.objects.filter(building=building)),
+            "dashboard": _apartment_counts(Apartment.objects.filter(building=building)),
         },
     )
 

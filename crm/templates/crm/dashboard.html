@@ -34,6 +34,41 @@
   </article>
 </section>
 
+<section class="finance-grid">
+  <article class="finance-card conversion reveal delay-1">
+    <div class="finance-topline">
+      <span>Конверсия сделок</span>
+      <b>%</b>
+    </div>
+    <strong>{{ financial.conversion_rate|floatformat:0 }}%</strong>
+    <small>{{ financial.closed_deals }} закрыто из {{ financial.deals_total }} сделок</small>
+  </article>
+  <article class="finance-card pipeline reveal delay-2">
+    <div class="finance-topline">
+      <span>Активный пайплайн</span>
+      <b>$</b>
+    </div>
+    <strong>${{ financial.active_pipeline|floatformat:0 }}</strong>
+    <small>сумма активных сделок</small>
+  </article>
+  <article class="finance-card revenue reveal delay-3">
+    <div class="finance-topline">
+      <span>Закрытая выручка</span>
+      <b>✓</b>
+    </div>
+    <strong>${{ financial.closed_revenue|floatformat:0 }}</strong>
+    <small>по завершенным продажам</small>
+  </article>
+  <article class="finance-card sqm reveal delay-4">
+    <div class="finance-topline">
+      <span>Средняя цена м2</span>
+      <b>м2</b>
+    </div>
+    <strong>${{ financial.average_sqm_price|floatformat:0 }}</strong>
+    <small>среднее по базе квартир</small>
+  </article>
+</section>
+
 <section class="dashboard-grid">
   <div class="panel reveal delay-2">
     <div class="section-head">
@@ -60,6 +95,36 @@
     </div>
   </div>
 
+  <div class="panel reveal delay-2">
+    <div class="section-head">
+      <div>
+        <p class="eyebrow">Финансы</p>
+        <h2>Выручка по домам</h2>
+      </div>
+    </div>
+    <div class="building-list">
+      {% for row in financial.revenue_by_building %}
+        <div class="building-row metric-row">
+          <span>
+            <strong>{{ row.building }}</strong>
+            <small>закрытые сделки</small>
+          </span>
+          <b>${{ row.revenue|floatformat:0 }}</b>
+        </div>
+      {% empty %}
+        <div class="empty-state">
+          <strong>Закрытых сделок пока нет</strong>
+          <p>После закрытия сделки здесь появится выручка по каждому дому.</p>
+        </div>
+      {% endfor %}
+      <div class="inline-metrics">
+        <span><strong>{{ financial.deals_total }}</strong> сделок</span>
+        <span><strong>{{ financial.closed_deals }}</strong> закрыто</span>
+        <span><strong>{{ financial.expired_reserved }}</strong> просрочено броней</span>
+      </div>
+    </div>
+  </div>
+
   <div class="panel ai-panel reveal delay-3">
     <div class="section-head">
       <div>
@@ -79,5 +144,5 @@
 </section>
 {% endblock %}
 {% block scripts %}
-<script src="{% static 'crm/app.js' %}"></script>
+<script src="{% static 'crm/app.js' %}?v=dollar-ui-1"></script>
 {% endblock %}

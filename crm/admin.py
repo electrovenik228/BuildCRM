@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import AIChatMessage, Apartment, Building, Client, Deal, Floor, ResidentialComplex
+from .models import AIChatMessage, Apartment, Building, Client, ClientNote, Deal, Floor, ResidentialComplex
 
 
 @admin.register(ResidentialComplex)
@@ -35,9 +35,16 @@ class ClientAdmin(admin.ModelAdmin):
     search_fields = ("full_name", "phone")
 
 
+@admin.register(ClientNote)
+class ClientNoteAdmin(admin.ModelAdmin):
+    list_display = ("id", "client", "note_type", "created_at", "text")
+    list_filter = ("note_type",)
+    search_fields = ("client__full_name", "client__phone", "text")
+
+
 @admin.register(Deal)
 class DealAdmin(admin.ModelAdmin):
-    list_display = ("id", "client", "apartment", "status", "final_price", "created_at")
+    list_display = ("id", "client", "apartment", "status", "final_price", "reserved_until", "created_at")
     list_filter = ("status",)
     search_fields = ("client__full_name", "client__phone", "apartment__number")
 

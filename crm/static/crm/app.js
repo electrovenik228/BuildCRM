@@ -5,6 +5,12 @@ function getCookie(name) {
   return '';
 }
 
+function formatCurrency(value) {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return '$0';
+  return `$${amount.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+}
+
 function setupApartmentModal() {
   const modal = document.getElementById('apartment-modal');
   if (!modal) return;
@@ -25,7 +31,7 @@ function setupApartmentModal() {
       fields.floor.textContent = card.dataset.floor;
       fields.rooms.textContent = card.dataset.rooms;
       fields.area.textContent = card.dataset.area;
-      fields.price.textContent = card.dataset.price;
+      fields.price.textContent = formatCurrency(card.dataset.price);
       fields.status.textContent = card.dataset.status;
       fields.payment.textContent = card.dataset.payment;
       modal.hidden = false;

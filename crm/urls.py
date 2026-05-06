@@ -6,6 +6,7 @@ from .views import (
     AIChatHistoryView,
     AIChatView,
     BuildingViewSet,
+    ClientNoteViewSet,
     ClientViewSet,
     DashboardView,
     DealViewSet,
@@ -19,6 +20,7 @@ router.register("buildings", BuildingViewSet, basename="building")
 router.register("floors", FloorViewSet, basename="floor")
 router.register("apartments", ApartmentViewSet, basename="apartment")
 router.register("clients", ClientViewSet, basename="client")
+router.register("client-notes", ClientNoteViewSet, basename="client-note")
 router.register("deals", DealViewSet, basename="deal")
 
 urlpatterns = [

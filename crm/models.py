@@ -144,6 +144,8 @@ class Deal(models.Model):
         LEAD = "lead", "Lead"
         IN_PROGRESS = "in_progress", "In progress"
         CLOSED = "closed", "Closed"
+        CANCELED = "canceled", "Canceled"
+        LOST = "lost", "Lost"
 
     client = models.ForeignKey(
         Client,
@@ -162,6 +164,7 @@ class Deal(models.Model):
         db_index=True,
     )
     final_price = models.DecimalField(max_digits=14, decimal_places=2)
+    reserved_until = models.DateTimeField(null=True, blank=True, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -180,6 +183,35 @@ class Deal(models.Model):
 
     def __str__(self):
         return f"Deal #{self.pk} / {self.client} / {self.apartment}"
+
+
+class ClientNote(models.Model):
+    class NoteType(models.TextChoices):
+        COMMENT = "comment", "Comment"
+        CALL = "call", "Call"
+
+    client = models.ForeignKey(
+        Client,
+        related_name="notes",
+        on_delete=models.CASCADE,
+    )
+    note_type = models.CharField(
+        max_length=16,
+        choices=NoteType.choices,
+        default=NoteType.COMMENT,
+        db_index=True,
+    )
+    text = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        indexes = [
+            models.Index(fields=["client", "note_type"]),
+        ]
+
+    def __str__(self):
+        return f"{self.client} / {self.note_type}: {self.text[:60]}"
 
 
 class AIChatMessage(models.Model):
